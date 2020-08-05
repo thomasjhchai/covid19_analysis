@@ -10,38 +10,43 @@ class CovidAPIData:
     """ Setting up Covid 19 data retrieval """
     # TODO: write multiple covid json data based on country
 
-    filename = ''
+    num_countries = 0
 
     def __init__(self, country):
-        # self.api_url = api_url
-        # self.api_param = api_params
 
         with open('config.json') as f:
             data = json.load(f)
         self.api_url = data['api_url'] + country
         self.api_param = {
             'from': data['start_date'], 'to': str(datetime.today())[:10]}
+        self.file = data['local_dir'] + 'covid_19_' + country + '.json'
+
+        # track number of countries connections
+        CovidAPIData.num_countries += 1
 
     def request_resource(self):
 
         try:
             r = requests.get(
                 self.api_url, params=self.api_param, timeout=5)
-            return {'resp_code': r.status_code, 'resp_ok': r.ok}
+            with open(self.file, "wb") as file:
+                file.write(r.content)
+            return {'resp_code': r.status_code,
+                    'resp_ok': r.ok, 'file': 'file created:' + self.file}
 
-        except requests.exceptions.RequestException as e:
-            return {'resp_code': e, 'resp_ok': False}
-
-    def __open_covid_local_data(self):
-        pass
+        except requests.exceptions.RequestException:
+            return {'resp_code': 'Timeout...',
+                    'resp_ok': False, 'file': 'file retrieved' + self.file}
 
 
 my_covid = CovidAPIData('malaysia')
 us_covid = CovidAPIData('united-states')
 
 
-print(my_covid.request_resource()['resp_code'], my_covid.api_url)
+print(my_covid.request_resource()[
+      'resp_code'], my_covid.request_resource()['file'], my_covid.api_url)
 print(us_covid.request_resource()['resp_code'], us_covid.api_url)
+print(CovidAPIData.num_countries)
 
 
 """

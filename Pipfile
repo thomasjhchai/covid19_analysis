@@ -11,6 +11,8 @@ autopep8 = "*"
 requests = "*"
 pandas = "*"
 ipykernel = "*"
+neovim = "*"
+pynvim = "*"
 
 [requires]
 python_version = "3.8"

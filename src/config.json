@@ -1,5 +1,5 @@
 {
-  "api_url": "https://api.covid19api.com/total/country/",
-  "local_file": "../data/covid_19.json",
-  "start_date": "2021-02-01"
+    "api_url": "https://api.covid19api.com/total/country/",
+    "local_dir": "../data/",
+    "start_date": "2021-02-01"
 }
