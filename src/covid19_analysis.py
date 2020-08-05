@@ -6,91 +6,164 @@ from datetime import datetime
 import pandas as pd
 
 
-class CovidAPIData:
-    """ Setting up Covid 19 data retrieval """
-    # TODO: write multiple covid json data based on country
+class CovidDataFrame:
 
     num_countries = 0
 
     def __init__(self, country):
 
+        self.country = country
+
         with open('config.json') as f:
-            data = json.load(f)
-        self.api_url = data['api_url'] + country
-        self.api_param = {
-            'from': data['start_date'], 'to': str(datetime.today())[:10]}
-        self.file = data['local_dir'] + 'covid_19_' + country + '.json'
+            config_data = json.load(f)
+            api_url = config_data['api_url'] + country
+            api_param = {'from': config_data['start_date'],
+                         'to': str(datetime.today())[:10]}
+
+        self.file = config_data['local_dir'] + \
+            'covid_19_' + country.lower() + '.json'
 
         # track number of countries connections
-        CovidAPIData.num_countries += 1
-
-    def request_resource(self):
+        CovidDataFrame.num_countries += 1
 
         try:
-            r = requests.get(
-                self.api_url, params=self.api_param, timeout=5)
-            with open(self.file, "wb") as file:
-                file.write(r.content)
-            return {'resp_code': r.status_code,
-                    'resp_ok': r.ok, 'file': 'file created:' + self.file}
+            self.request = requests.get(
+                api_url, params=api_param, timeout=5)
+        #    return {'resp_code': request.status_code,
+        #            'resp_ok': request.ok}
 
         except requests.exceptions.RequestException:
-            return {'resp_code': 'Timeout...',
-                    'resp_ok': False, 'file': 'file retrieved' + self.file}
+            print('Timeout')
+        #    return {'resp_code': 'Timeout...',
+        #            'resp_ok': False}
 
+        # status = self.request_resource()
+        # if status['resp_ok']:
 
-my_covid = CovidAPIData('malaysia')
-us_covid = CovidAPIData('united-states')
+    def init_dataframe(self):
+        if(self.__check_file(self.file, self.request)):
+            df = pd.read_json(self.file)
 
+            # set Date column as index
+            df.set_index('Date', inplace=True)
+            # strip index date of time info
+            for item in df.index:
+                df.rename(index={item: str(item)[:10]}, inplace=True)
 
-print(my_covid.request_resource()[
-      'resp_code'], my_covid.request_resource()['file'], my_covid.api_url)
-print(us_covid.request_resource()['resp_code'], us_covid.api_url)
-print(CovidAPIData.num_countries)
+            # remove unwanted Columns
+            df.drop(columns=['Country', 'CountryCode', 'Province',
+                             'City', 'CityCode', 'Lat', "Lon"], inplace=True)
 
+            df = self.__new_datasets(df)
 
-"""
+        return df
 
-try:
-    api_request = requests.get(API_URL, params=url_param, timeout=30)
+    def __new_datasets(self, df):
+        """ add new calculated dataset into DataFrame """
 
-    if os.path.isfile(COVID_LOCAL):
-        print('Exist')
-        t = os.path.getmtime(COVID_LOCAL)
-        file_date = (str(datetime.fromtimestamp(t)))[:10]
+        # Population by Country data pulled from UN
+        # [source: https://population.un.org/wpp/Download/Standard/Population/] edited to conform to country's name
+        pop_df = pd.read_csv('../data/population.csv')
+        pop_df['Country'] = pop_df['Country'].str.replace(' ', '-')
+        pop_df['Pop.(\'000)'] = pop_df['Pop.(\'000)'].str.replace(' ', '') \
+            .astype(int) * 1000
+        pop_df.set_index('Country', inplace=True)
 
-        if file_date < str(today_date)[:10]:
-            if api_request.ok:
-                print('Outdated File. Updating new data from web.....')
-                with open(COVID_LOCAL, "wb") as file:
-                    file.write(api_request.content)
-                df = pd.read_json(COVID_LOCAL)
-                df.set_index('Date', inplace=True)
+        daily_cases = []
+        daily_deaths = []
+        daily_recovered = []
+
+        for index, item in enumerate(df.index):
+            if item == df.index[0]:
+                new_case, new_death, new_recovered = df.loc[df.index[0], [
+                    'Confirmed', 'Deaths', 'Recovered']]
+                daily_cases.append(new_case)
+                daily_deaths.append(new_death)
+                daily_recovered.append(new_recovered)
+
             else:
-                print('Error: ', api_request.status_code)
-                print('Use existing file.....')
-                df = pd.read_json(COVID_LOCAL)
-                df.set_index('Date', inplace=True)
-        else:
-            print('Retrieving from current file....')
-            df = pd.read_json(COVID_LOCAL)
-            df.set_index('Date', inplace=True)
-    else:
-        if api_request.ok:
-            print('Pulling data from web to new file....')
-            with open(COVID_LOCAL, "wb") as file:
-                file.write(api_request.content)
-            df = pd.read_json(COVID_LOCAL)
-            df.set_index('Date', inplace=True)
-        else:
-            print('Error: ', api_request.status_code)
-            print('No Data File exist....quiting')
-            sys.exit(0)
+                new_case, new_death, new_recovered = df.loc[df.index[index], ['Confirmed', 'Deaths', 'Recovered']] \
+                    - df.loc[df.index[index - 1],
+                             ['Confirmed', 'Deaths', 'Recovered']]
+                daily_cases.append(new_case)
+                daily_deaths.append(new_death)
+                daily_recovered.append(new_recovered)
 
-except requests.exceptions.RequestException as e:
-    print('Server Request Failed :', e)
-    print('using existing file ....')
-    df = pd.read_json(COVID_LOCAL)
-    df.set_index('Date', inplace=True)
+            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']] \
+                = daily_cases[index], daily_deaths[index], daily_recovered[index]
 
-"""
+        # release unwanted objects from memory
+        del daily_cases, daily_deaths, daily_recovered
+
+        df['Mortality Rates'] = round(df['Deaths'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Recovered Rates'] = round(df['Recovered'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Active Rates'] = round(df['Active'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Cases per 1mil pop'] = (
+            (df['Confirmed'] / pop_df.loc[self.country, 'Pop.(\'000)']) * 1000000).astype(int)
+        df[['Daily Cases', 'Daily Deaths', 'Daily Recovered']] = df[[
+            'Daily Cases', 'Daily Deaths', 'Daily Recovered']].astype(int)
+
+        return df
+
+    def past_month(self):
+        pass
+
+    def max_daily_record(self, df):
+        # Max Daily Record
+        result = df[['Daily Cases', 'Daily Deaths', 'Daily Recovered']].max()
+        return dict(result)
+
+    def average_record(self, df):
+        # Average Record
+        result = round(
+            df[['Daily Cases', 'Daily Deaths', 'Daily Recovered']].mean(), 2)
+        return dict(result)
+
+    def __check_file(self, file, request):
+        """
+        Check File Condition
+            - if exist
+            - if outdated
+        """
+        if os.path.isfile(file):
+            t = os.path.getmtime(file)
+            file_date = (str(datetime.fromtimestamp(t)))[:10]
+
+            # check if file is up to date
+            if file_date < str(datetime.today())[:10]:
+                if request.ok:
+                    print('Outdated File: Pulling data from web....')
+                    self.__open_file(file, request)
+                    return True
+                else:
+                    print('Error: ', request.status_code)
+                    print('Loading existing file....')
+                    return False
+            else:
+                print('Loading existing file....')
+                return True
+        else:
+            if request.ok:
+                print('No file found: Pulling data from web....')
+                self.__open_file(file, request)
+                return True
+            else:
+                print('Error: ', request.status_code)
+                print('No Data File exist and server error: Exiting....')
+                sys.exit(0)
+
+    def __open_file(self, file, request):
+        with open(file, "wb") as f:
+            f.write(request.content)
+
+
+my_covid = CovidDataFrame('Malaysia')
+us_covid = CovidDataFrame('Singapore')
+
+my_df = my_covid.init_dataframe()
+print('Malaysia (Avg Daily):', my_covid.average_record(my_df))
+us_df = us_covid.init_dataframe()
+print('Singapore (Avg Daily):', us_covid.average_record(us_df))
