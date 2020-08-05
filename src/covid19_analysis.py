@@ -8,6 +8,8 @@ import pandas as pd
 
 class CovidAPIData:
     """ Setting up Covid 19 data retrieval """
+    # TODO: write multiple covid json data based on country
+
     filename = ''
 
     def __init__(self, country):
@@ -29,6 +31,9 @@ class CovidAPIData:
 
         except requests.exceptions.RequestException as e:
             return {'resp_code': e, 'resp_ok': False}
+
+    def __open_covid_local_data(self):
+        pass
 
 
 my_covid = CovidAPIData('malaysia')
