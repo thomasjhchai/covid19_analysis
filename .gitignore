@@ -3,6 +3,5 @@
 __pycache__/
 *.pyc
 *.csv
-*.json
 notebooks/tests
 .ipynb_checkpoints/
