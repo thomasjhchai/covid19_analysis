@@ -56,12 +56,12 @@ class CovidDataFrame:
         csv_url = [config['confirmed'], config['deaths'], config['recovered']]
         filenames = [config['c_file'], config['d_file'], config['r_file']]
 
-        url_file_dict = dict(zip(csv_url, filenames))
+        file_dict = dict(zip(csv_url, filenames))
 
-        for url in url_file_dict:
+        for url in file_dict:
             try:
                 request = requests.get(url, timeout=5)
-                self.__check_file(request, url_file_dict[url])
+                self.__check_file(request, file_dict[url])
             except requests.exceptions.RequestException:
                 print('Timeout...')
 
