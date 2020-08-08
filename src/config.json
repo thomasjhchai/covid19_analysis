@@ -1,5 +1,8 @@
 {
-    "api_url": "https://api.covid19api.com/total/country/",
-    "local_dir": "../data/",
-    "start_date": "2021-02-01"
+  "confirmed": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",
+  "deaths": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",
+  "recovered": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",
+  "c_file": "../data/confirmed.csv",
+  "d_file": "../data/deaths.csv",
+  "r_file": "../data/recovered.csv"
 }
