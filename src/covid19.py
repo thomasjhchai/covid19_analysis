@@ -56,20 +56,17 @@ class CovidDataFrame:
         csv_url = [config['confirmed'], config['deaths'], config['recovered']]
         filenames = [config['c_file'], config['d_file'], config['r_file']]
 
-        for file in filenames:
-            print('debug checking filename', file)
-            for item in csv_url:
-                #   print('debug csv_url', item)
+        url_file_dict = dict(zip(csv_url, filenames))
 
-                try:
-                    request = requests.get(item, timeout=5)
-                    self.__check_file(request, file, config)
-                except requests.exceptions.RequestException:
-                    print('Timeout JH Data')
+        for url in url_file_dict:
+            try:
+                request = requests.get(url, timeout=5)
+                self.__check_file(request, url_file_dict[url])
+            except requests.exceptions.RequestException:
+                print('Timeout...')
 
-    def __check_file(self, request, file, config):
+    def __check_file(self, request, file):
 
-        # for file in filenames:
         if os.path.isfile(file):
             t = os.path.getmtime(file)
             file_date = (str(datetime.fromtimestamp(t)))[: 10]
@@ -79,20 +76,15 @@ class CovidDataFrame:
                 if request.ok:
                     print('Outdated File: Pulling data from web....')
                     self.__write_file(file, request)
-                    # return True
                 else:
                     print('Error: ', request.status_code)
                     print('Loading existing file....')
-                    # return False
             else:
-                #    self.__write_file(file, request)
                 print('file current....')
-                # return True
         else:
             if request.ok:
                 print('No file found: Pulling data from web....')
                 self.__write_file(file, request)
-                # return True
             else:
                 print('Error: ', request.status_code)
                 print('No Data File exist and server error: Exiting....')
@@ -136,16 +128,4 @@ class CovidDataFrame:
             print('__calc_world', item)
 
 
-test = CovidDataFrame('China')
-
-
-# %%
-
-list_1 = ['confirmed', 'death', 'recovered']
-list_2 = ['df_confirmed', 'df_death', 'df_recovered']
-
-dict_test = zip(list_1, list_2)
-print(dict(dict_test))
-
-
-# %%
+test = CovidDataFrame('Malaysia')
