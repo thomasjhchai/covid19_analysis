@@ -46,40 +46,61 @@ class CovidDataFrame:
         # grab the start date
         self.start_date = df_dict['confirmed'].index[0]
 
+        self.__download_data(config_data)
+
     def __download_data(self, config):
         """ download copies of remote data for use if
             network connection error
         """
 
+        csv_url = [config['confirmed'], config['deaths'], config['recovered']]
         filenames = [config['c_file'], config['d_file'], config['r_file']]
 
         for file in filenames:
-            if os.path.isfile(file):
-                t = os.path.getmtime(file)
-                file_date = (str(datetime.fromtimestamp(t)))[: 10]
+            print('debug checking filename', file)
+            for item in csv_url:
+                #   print('debug csv_url', item)
 
-                # check if file is up to date
-        #        if file_date < str(datetime.today())[: 10]:
-        #           if request.ok:
-        #             print('Outdated File: Pulling data from web....')
-        #             self.__open_file(file, request)
-        #             return True
-        #         else:
-        #             print('Error: ', request.status_code)
-        #             print('Loading existing file....')
-        #             return False
-        #     else:
-        #         print('Loading existing file....')
-        #         return True
-        # else:
-        #     if request.ok:
-        #         print('No file found: Pulling data from web....')
-        #         self.__open_file(file, request)
-        #         return True
-        #     else:
-        #         print('Error: ', request.status_code)
-        #         print('No Data File exist and server error: Exiting....')
-        #         sys.exit(0)
+                try:
+                    request = requests.get(item, timeout=5)
+                    self.__check_file(request, file, config)
+                except requests.exceptions.RequestException:
+                    print('Timeout JH Data')
+
+    def __check_file(self, request, file, config):
+
+        # for file in filenames:
+        if os.path.isfile(file):
+            t = os.path.getmtime(file)
+            file_date = (str(datetime.fromtimestamp(t)))[: 10]
+
+            # check if file is up to date
+            if file_date < str(datetime.today())[: 10]:
+                if request.ok:
+                    print('Outdated File: Pulling data from web....')
+                    self.__write_file(file, request)
+                    # return True
+                else:
+                    print('Error: ', request.status_code)
+                    print('Loading existing file....')
+                    # return False
+            else:
+                #    self.__write_file(file, request)
+                print('file current....')
+                # return True
+        else:
+            if request.ok:
+                print('No file found: Pulling data from web....')
+                self.__write_file(file, request)
+                # return True
+            else:
+                print('Error: ', request.status_code)
+                print('No Data File exist and server error: Exiting....')
+                sys.exit(0)
+
+    def __write_file(self, file, request):
+        with open(file, "wb") as f:
+            f.write(request.content)
 
     def __load_country(self, country, df_dict):
         for item in CovidDataFrame._categories:
@@ -91,6 +112,7 @@ class CovidDataFrame:
             try:
                 kwargs[key] = pd.read_csv(config_data[key])
             except urllib.error.URLError as e:
+                # TODO: instead of exist, pull from file (if file exist else exit)
                 print(e)
                 sys.exit(0)
 
