@@ -1,0 +1,6 @@
+{
+  "country_api_url": "https://api.covid19api.com/total/country/",
+  "world_api_url": "https://api.covid19api.com/world/total",
+  "local_dir": "../data/",
+  "start_date": "2021-02-01"
+}

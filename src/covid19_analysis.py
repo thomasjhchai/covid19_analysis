@@ -14,9 +14,9 @@ class CovidDataFrame:
 
         self.country = country
 
-        with open('config.json') as f:
+        with open('config_a.json') as f:
             config_data = json.load(f)
-            api_url = config_data['api_url'] + country
+            api_url = config_data['country_api_url'] + country
             api_param = {'from': config_data['start_date'],
                          'to': str(datetime.today())[:10]}
 
@@ -29,15 +29,15 @@ class CovidDataFrame:
         try:
             self.request = requests.get(
                 api_url, params=api_param, timeout=5)
-        #    return {'resp_code': request.status_code,
-        #            'resp_ok': request.ok}
+        # return {'resp_code': request.status_code,
+        # 'resp_ok': request.ok}
 
         except requests.exceptions.RequestException:
             print('Timeout')
-        #    return {'resp_code': 'Timeout...',
-        #            'resp_ok': False}
+        # return {'resp_code': 'Timeout...',
+        # 'resp_ok': False}
 
-        # status = self.request_resource()
+        ## status = self.request_resource()
         # if status['resp_ok']:
 
     def init_dataframe(self):
@@ -160,6 +160,7 @@ class CovidDataFrame:
             f.write(request.content)
 
 
+# TODO: figure a way to return dataframe when create instance. use __new__()
 my_covid = CovidDataFrame('Malaysia')
 us_covid = CovidDataFrame('Singapore')
 
