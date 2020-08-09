@@ -30,7 +30,9 @@ class CovidDataFrame:
             df_dict.update(
                 {CovidDataFrame._categories[index]: item})
 
+        # TODO: calculate World Confirmed, Deaths and Recovered
         # self.__calc_world(*CovidDataFrame._categories)
+
         df_country = self.__load_country(country, df_dict)
 
         # <REFACTOR> into function perhaps
@@ -49,7 +51,7 @@ class CovidDataFrame:
 
         # grab the start date
         start_date = df_dict['Confirmed'].index[0]
-        self.dataframe = self.__calc_daily(df_combined)
+        self.dataframe = self.__calc_daily(country, df_combined)
 
     def __download_data(self, config):
         """ download copies of remote data for use if
@@ -83,8 +85,6 @@ class CovidDataFrame:
                 else:
                     print('Error: ', request.status_code)
                     print(f'Loading local file: [{file}]')
-            else:
-                print(f'File current: [{file}]')
         else:
             if request.ok:
                 print(f'File: [{file}] not found. Pull from: [{request.url}]')
@@ -130,6 +130,10 @@ class CovidDataFrame:
                 df_value.rename(
                     index={date_item: date_str}, inplace=True)
 
+            # TODO: clean up code assigned to World Columns
+            for idx in df_value.index:
+                df_value.loc[idx, 'World'] = df_value.loc[idx].sum()
+
             yield df_value
 
     def __calc_world(self, *args):
@@ -137,7 +141,7 @@ class CovidDataFrame:
         for item in args:
             print('__calc_world', item)
 
-    def __calc_daily(self, df):
+    def __calc_daily(self, country, df):
         """ Calculate Daily Cases, Deaths and Recoveries from
             given dataset
 
@@ -151,27 +155,61 @@ class CovidDataFrame:
 
         for index, item in enumerate(df.index):
             if item == df.index[0]:
-                new_case, new_death, new_recovered = df.loc[df.index[0], [
-                    'Confirmed', 'Deaths', 'Recovered']]
+                # new_case, new_death, new_recovered = df.loc[df.index[0], [
+                #    'Confirmed', 'Deaths', 'Recovered']]
+                new_case = df.loc[df.index[0], 'Confirmed']
+                new_death = df.loc[df.index[0], 'Deaths']
+                new_recovered = df.loc[df.index[0], 'Recovered']
+
                 daily_cases.append(new_case)
                 daily_deaths.append(new_death)
                 daily_recovered.append(new_recovered)
 
             else:
-                new_case, new_death, new_recovered = df.loc[df.index[index], ['Confirmed', 'Deaths', 'Recovered']] \
-                    - df.loc[df.index[index - 1],
-                             ['Confirmed', 'Deaths', 'Recovered']]
+                new_case = df.loc[df.index[index], 'Confirmed'] - \
+                    df.loc[df.index[index-1], 'Confirmed']
+                new_death = df.loc[df.index[index], 'Deaths'] - \
+                    df.loc[df.index[index-1], 'Deaths']
+                new_recovered = df.loc[df.index[index], 'Recovered'] - \
+                    df.loc[df.index[index-1], 'Recovered']
+                # new_death, new_recovered = \
+                #     df.loc[df.index[index], [
+                #         'Deaths', 'Recovered']]
+                # - df.loc[df.index[index - 1],
+                #          ['Deaths', 'Recovered']]
                 daily_cases.append(new_case)
                 daily_deaths.append(new_death)
                 daily_recovered.append(new_recovered)
 
-            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']] \
-                = daily_cases[index], daily_deaths[index], daily_recovered[index]
+            # print(
+            #    f'debug case: {daily_cases}')
+            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']
+                   ] = daily_cases[index], daily_deaths[index], daily_recovered[index]
+
+        # Population by Country data pulled from UN [source: https://population.un.org/wpp/Download/Standard/Population/] edited to conform to country's name
+        pop_df = pd.read_csv('../data/population.csv')
+        pop_df['Country'] = pop_df['Country'].str.replace(
+            ' ', '-')  # .str.lower()
+        pop_df['Pop.(\'000)'] = pop_df['Pop.(\'000)'].str.replace(' ', '').astype(int) \
+            * 1000
+        pop_df.set_index('Country', inplace=True)
+
+        df['Mortality Rates'] = round(df['Deaths'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Recovered Rates'] = round(df['Recovered'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Active Rates'] = round(df['Active'].divide(
+            df['Confirmed']).fillna(0.0), 4) * 100
+        df['Cases per 1mil pop'] = (
+            (df['Confirmed'] / pop_df.loc[country, 'Pop.(\'000)']) * 1000000).astype(int)
+
+        df[['Daily Cases', 'Daily Deaths', 'Daily Recovered']] = df[[
+            'Daily Cases', 'Daily Deaths', 'Daily Recovered']].astype(int)
 
         return df
 
 
 myr = CovidDataFrame('Malaysia')
-sg = CovidDataFrame('Singapore')
 print('Malaysia:\n ', myr.dataframe)
-print('Singapore:\n ', sg.dataframe)
+world = CovidDataFrame('World')
+print('World:\n ', world.dataframe)
