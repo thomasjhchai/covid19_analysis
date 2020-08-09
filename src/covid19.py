@@ -30,9 +30,6 @@ class CovidDataFrame:
             df_dict.update(
                 {CovidDataFrame._categories[index]: item})
 
-        # TODO: calculate World Confirmed, Deaths and Recovered
-        # self.__calc_world(*CovidDataFrame._categories)
-
         df_country = self.__load_country(country, df_dict)
 
         # <REFACTOR> into function perhaps
@@ -49,12 +46,12 @@ class CovidDataFrame:
             - df_combined['Deaths'] \
             - df_combined['Recovered']
 
+        self.dataframe = self.__calc_daily(country, df_combined)
         # </REFACTOR> into function perhaps
 
-        # grab the start date
+        # grab the start date and end date
         self.start_date = df_dict['Confirmed'].index[0]
         self.end_date = df_dict['Confirmed'].index[-1]
-        self.dataframe = self.__calc_daily(country, df_combined)
 
     def __download_data(self, config):
         """ download copies of remote data for use if
@@ -74,6 +71,8 @@ class CovidDataFrame:
                 print(f'Timeout: [{url}]')
 
     def __check_file(self, request, file):
+        """ check if file exist or up to date before pulling from web
+        """
 
         if os.path.isfile(file):
             t = os.path.getmtime(file)
@@ -109,6 +108,9 @@ class CovidDataFrame:
             yield df_dict[item][country]
 
     def __init_dataframe(self, config_data, **kwargs):
+        """ setting up initial dataframe
+        """
+        # TODO: write a better function description above
 
         local_files = dict(zip(CovidDataFrame._categories,
                                [config_data['c_file'], config_data['d_file'],
@@ -145,11 +147,7 @@ class CovidDataFrame:
 
             yield df_value
 
-    def __calc_world(self, *args):
-
-        for item in args:
-            print('__calc_world', item)
-
+    # TODO: change function name to better reflect the code
     def __calc_daily(self, country, df):
         """ Calculate Daily Cases, Deaths and Recoveries from
             given dataset
@@ -187,14 +185,17 @@ class CovidDataFrame:
             df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']] \
                 = daily_cases[index], daily_deaths[index], daily_recovered[index]
 
-        # Population by Country data pulled from UN [source: https://population.un.org/wpp/Download/Standard/Population/] edited to conform to country's name
+        # Population by Country data pulled from UN
+        # [source: https://population.un.org/wpp/Download/Standard/Population/]
+        # edited to conform to country's name
         pop_df = pd.read_csv('../data/population.csv')
         pop_df['Country'] = pop_df['Country'].str.replace(
-            ' ', '-')  # .str.lower()
+            ' ', '-')
         pop_df['Pop.(\'000)'] = pop_df['Pop.(\'000)'].str.replace(' ', '').astype(int) \
             * 1000
         pop_df.set_index('Country', inplace=True)
 
+        # adding 'Rates' columns to dataframe
         df['Mortality Rates'] = round(df['Deaths'].divide(
             df['Confirmed']).fillna(0.0), 4) * 100
         df['Recovered Rates'] = round(df['Recovered'].divide(
@@ -204,6 +205,8 @@ class CovidDataFrame:
         df['Cases per 1mil pop'] = (
             (df['Confirmed'] / pop_df.loc[country, 'Pop.(\'000)']) * 1000000).astype(int)
 
+        # converting float to integer as these columns should
+        # not have decimals
         df[['Daily Cases', 'Daily Deaths', 'Daily Recovered']] = df[[
             'Daily Cases', 'Daily Deaths', 'Daily Recovered']].astype(int)
 
