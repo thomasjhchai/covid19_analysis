@@ -36,6 +36,8 @@ class CovidDataFrame:
         df_country = self.__load_country(country, df_dict)
 
         # <REFACTOR> into function perhaps
+        # combining 'Confirmed', 'Deaths' Recovered' dataframe
+        # into a single dataframe based on country (df_country)
         df_c = []
         for df_generator in df_country:
             df_c.append(df_generator)
@@ -107,8 +109,9 @@ class CovidDataFrame:
 
     def __init_dataframe(self, config_data, **kwargs):
 
-        local_files = dict(zip(CovidDataFrame._categories, [config_data['c_file'],
-                                                            config_data['d_file'], config_data['r_file']]))
+        local_files = dict(zip(CovidDataFrame._categories,
+                               [config_data['c_file'], config_data['d_file'],
+                                config_data['r_file']]))
 
         for key, df_value in kwargs.items():
             try:
@@ -130,9 +133,14 @@ class CovidDataFrame:
                 df_value.rename(
                     index={date_item: date_str}, inplace=True)
 
-            # TODO: clean up code assigned to World Columns
+            # assigned total 'World' value based on dates
             for idx in df_value.index:
                 df_value.loc[idx, 'World'] = df_value.loc[idx].sum()
+
+            # Force World numbers to be int instead of float.
+            # It seems sum() returns float64
+            # Is there a better way to do it?
+            df_value['World'] = df_value['World'].astype(int)
 
             yield df_value
 
@@ -201,7 +209,5 @@ class CovidDataFrame:
         return df
 
 
-myr = CovidDataFrame('Malaysia')
-print('Malaysia:\n ', myr.dataframe)
-world = CovidDataFrame('World')
-print('World:\n ', world.dataframe)
+esp = CovidDataFrame('World')
+print('World:\n ', esp.dataframe.tail(100))
