@@ -4,18 +4,22 @@ import requests
 import json
 from datetime import datetime
 import pandas as pd
+# import matplotlib.pyplot as plt
 import urllib.request
 
 
 class CovidDataFrame:
 
-    _categories = ['confirmed', 'deaths', 'recovered']
+    _categories = ['Confirmed', 'Deaths', 'Recovered']
     _df_list = ['df_confirmed', 'df_deaths', 'df_recovered']
 
     def __init__(self, country):
 
         with open('config.json') as f:
             config_data = json.load(f)
+
+        # download data to be used when connection error
+        self.__download_data(config_data)
 
         df = dict(zip(CovidDataFrame._categories, CovidDataFrame._df_list))
 
@@ -37,23 +41,22 @@ class CovidDataFrame:
         df_combined = pd.DataFrame(df_c)
         df_combined = df_combined.transpose()
         df_combined.columns = CovidDataFrame._categories
-        df_combined['active'] = df_combined['confirmed'] \
-            - df_combined['deaths'] \
-            - df_combined['recovered']
-        print(df_combined)
+        df_combined['Active'] = df_combined['Confirmed'] \
+            - df_combined['Deaths'] \
+            - df_combined['Recovered']
+
         # </REFACTOR> into function perhaps
 
         # grab the start date
-        self.start_date = df_dict['confirmed'].index[0]
-
-        self.__download_data(config_data)
+        start_date = df_dict['Confirmed'].index[0]
+        self.dataframe = self.__calc_daily(df_combined)
 
     def __download_data(self, config):
         """ download copies of remote data for use if
             network connection error
         """
 
-        csv_url = [config['confirmed'], config['deaths'], config['recovered']]
+        csv_url = [config['Confirmed'], config['Deaths'], config['Recovered']]
         filenames = [config['c_file'], config['d_file'], config['r_file']]
 
         file_dict = dict(zip(csv_url, filenames))
@@ -63,7 +66,7 @@ class CovidDataFrame:
                 request = requests.get(url, timeout=5)
                 self.__check_file(request, file_dict[url])
             except requests.exceptions.RequestException:
-                print('Timeout...')
+                print(f'Timeout: [{url}]')
 
     def __check_file(self, request, file):
 
@@ -74,16 +77,17 @@ class CovidDataFrame:
             # check if file is up to date
             if file_date < str(datetime.today())[: 10]:
                 if request.ok:
-                    print('Outdated File: Pulling data from web....')
+                    print(
+                        f'Outdated File: [{file}]. Pull from: [{request.url}]')
                     self.__write_file(file, request)
                 else:
                     print('Error: ', request.status_code)
-                    print('Loading existing file....')
+                    print(f'Loading local file: [{file}]')
             else:
-                print('file current....')
+                print(f'File current: [{file}]')
         else:
             if request.ok:
-                print('No file found: Pulling data from web....')
+                print(f'File: [{file}] not found. Pull from: [{request.url}]')
                 self.__write_file(file, request)
             else:
                 print('Error: ', request.status_code)
@@ -95,37 +99,79 @@ class CovidDataFrame:
             f.write(request.content)
 
     def __load_country(self, country, df_dict):
+        """ loading all the frames ['Confirmed', 'Deaths. 'Recovered']
+            that belong to the specified country
+        """
         for item in CovidDataFrame._categories:
             yield df_dict[item][country]
 
     def __init_dataframe(self, config_data, **kwargs):
 
-        for key in kwargs:
+        local_files = dict(zip(CovidDataFrame._categories, [config_data['c_file'],
+                                                            config_data['d_file'], config_data['r_file']]))
+
+        for key, df_value in kwargs.items():
             try:
-                kwargs[key] = pd.read_csv(config_data[key])
-            except urllib.error.URLError as e:
-                # TODO: instead of exist, pull from file (if file exist else exit)
-                print(e)
-                sys.exit(0)
+                df_value = pd.read_csv(config_data[key])
+            except urllib.error.URLError:
+                df_value = pd.read_csv(local_files[key])
+                print(
+                    f'Server error. Retrieving local files: [{local_files[key]}]')
 
             # restructure dataframes
-            kwargs[key].drop(columns=['Lat', 'Long'], inplace=True)
-            kwargs[key] = kwargs[key].groupby(
+            df_value.drop(columns=['Lat', 'Long'], inplace=True)
+            df_value = df_value.groupby(
                 'Country/Region').sum().transpose()
 
             # change date format '2/3/20' to '2020-03-02'
-            for date_item in kwargs[key].index:
+            for date_item in df_value.index:
                 date_obj = datetime.strptime(date_item, '%m/%d/%y')
                 date_str = datetime.strftime(date_obj, '%Y-%m-%d')
-                kwargs[key].rename(
+                df_value.rename(
                     index={date_item: date_str}, inplace=True)
 
-            yield kwargs[key]
+            yield df_value
 
     def __calc_world(self, *args):
 
         for item in args:
             print('__calc_world', item)
 
+    def __calc_daily(self, df):
+        """ Calculate Daily Cases, Deaths and Recoveries from
+            given dataset
 
-test = CovidDataFrame('Malaysia')
+            - Daily Cases = Total Cases[Today] - Total Cases[Previous Day]
+            - Daily Deaths = Total Deaths[Today] - Total Deaths[Previous Day]
+            - Daily Recoveries = Total Recovered[Today] - Total Recovered[Previous Day]
+        """
+        daily_cases = []
+        daily_deaths = []
+        daily_recovered = []
+
+        for index, item in enumerate(df.index):
+            if item == df.index[0]:
+                new_case, new_death, new_recovered = df.loc[df.index[0], [
+                    'Confirmed', 'Deaths', 'Recovered']]
+                daily_cases.append(new_case)
+                daily_deaths.append(new_death)
+                daily_recovered.append(new_recovered)
+
+            else:
+                new_case, new_death, new_recovered = df.loc[df.index[index], ['Confirmed', 'Deaths', 'Recovered']] \
+                    - df.loc[df.index[index - 1],
+                             ['Confirmed', 'Deaths', 'Recovered']]
+                daily_cases.append(new_case)
+                daily_deaths.append(new_death)
+                daily_recovered.append(new_recovered)
+
+            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']] \
+                = daily_cases[index], daily_deaths[index], daily_recovered[index]
+
+        return df
+
+
+myr = CovidDataFrame('Malaysia')
+sg = CovidDataFrame('Singapore')
+print('Malaysia:\n ', myr.dataframe)
+print('Singapore:\n ', sg.dataframe)
