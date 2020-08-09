@@ -13,6 +13,8 @@ pandas = "*"
 ipykernel = "*"
 neovim = "*"
 pynvim = "*"
+matplotlib = "*"
+notebook = "*"
 
 [requires]
 python_version = "3.8"
