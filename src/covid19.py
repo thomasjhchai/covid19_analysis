@@ -52,7 +52,8 @@ class CovidDataFrame:
         # </REFACTOR> into function perhaps
 
         # grab the start date
-        start_date = df_dict['Confirmed'].index[0]
+        self.start_date = df_dict['Confirmed'].index[0]
+        self.end_date = df_dict['Confirmed'].index[-1]
         self.dataframe = self.__calc_daily(country, df_combined)
 
     def __download_data(self, config):
@@ -126,12 +127,12 @@ class CovidDataFrame:
             df_value = df_value.groupby(
                 'Country/Region').sum().transpose()
 
-            # change date format '2/3/20' to '2020-03-02'
+            # change date format  from str '2/3/20' to date object
             for date_item in df_value.index:
                 date_obj = datetime.strptime(date_item, '%m/%d/%y')
-                date_str = datetime.strftime(date_obj, '%Y-%m-%d')
+                # date_str = datetime.strftime(date_obj, '%Y-%m-%d')
                 df_value.rename(
-                    index={date_item: date_str}, inplace=True)
+                    index={date_item: date_obj}, inplace=True)
 
             # assigned total 'World' value based on dates
             for idx in df_value.index:
@@ -183,8 +184,8 @@ class CovidDataFrame:
                 daily_deaths.append(new_death)
                 daily_recovered.append(new_recovered)
 
-            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']
-                   ] = daily_cases[index], daily_deaths[index], daily_recovered[index]
+            df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']] \
+                = daily_cases[index], daily_deaths[index], daily_recovered[index]
 
         # Population by Country data pulled from UN [source: https://population.un.org/wpp/Download/Standard/Population/] edited to conform to country's name
         pop_df = pd.read_csv('../data/population.csv')
@@ -209,5 +210,9 @@ class CovidDataFrame:
         return df
 
 
-esp = CovidDataFrame('World')
-print('World:\n ', esp.dataframe.tail(100))
+esp = CovidDataFrame('Australia')
+print('Australia:\n ', esp.dataframe.tail(100))
+print(f'start date = {esp.start_date}, end date = {esp.end_date}')
+print(
+    f'info: \n{esp.dataframe.loc[esp.end_date]} \n{esp.dataframe.loc[esp.start_date]}')
+print(esp.dataframe.loc['2020-07'])
