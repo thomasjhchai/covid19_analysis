@@ -155,8 +155,6 @@ class CovidDataFrame:
 
         for index, item in enumerate(df.index):
             if item == df.index[0]:
-                # new_case, new_death, new_recovered = df.loc[df.index[0], [
-                #    'Confirmed', 'Deaths', 'Recovered']]
                 new_case = df.loc[df.index[0], 'Confirmed']
                 new_death = df.loc[df.index[0], 'Deaths']
                 new_recovered = df.loc[df.index[0], 'Recovered']
@@ -172,17 +170,11 @@ class CovidDataFrame:
                     df.loc[df.index[index-1], 'Deaths']
                 new_recovered = df.loc[df.index[index], 'Recovered'] - \
                     df.loc[df.index[index-1], 'Recovered']
-                # new_death, new_recovered = \
-                #     df.loc[df.index[index], [
-                #         'Deaths', 'Recovered']]
-                # - df.loc[df.index[index - 1],
-                #          ['Deaths', 'Recovered']]
+
                 daily_cases.append(new_case)
                 daily_deaths.append(new_death)
                 daily_recovered.append(new_recovered)
 
-            # print(
-            #    f'debug case: {daily_cases}')
             df.loc[item, ['Daily Cases', 'Daily Deaths', 'Daily Recovered']
                    ] = daily_cases[index], daily_deaths[index], daily_recovered[index]
 
