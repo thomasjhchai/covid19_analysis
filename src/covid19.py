@@ -75,7 +75,7 @@ class CovidDataFrame:
                 print(f'Timeout: [{url}]')
 
     def __check_file(self, request, file):
-        """ 
+        """
         check if file exist or up to date before pulling from web
         """
 
@@ -208,8 +208,6 @@ class CovidDataFrame:
         # [source: https://population.un.org/wpp/Download/Standard/Population/]
         # edited to conform to country's name
         pop_df = pd.read_csv('../data/population.csv')
-        pop_df['Country'] = pop_df['Country'].str.replace(
-            ' ', '-')
         pop_df['Pop.(\'000)'] = pop_df['Pop.(\'000)'].str.replace(' ', '').astype(int) \
             * 1000
         pop_df.set_index('Country', inplace=True)
@@ -224,7 +222,7 @@ class CovidDataFrame:
         return df
 
 
-esp = CovidDataFrame('Australia')
+esp = CovidDataFrame('New Zealand')
 print('Australia:\n ', esp.dataframe.tail(100))
 print(f'start date = {esp.start_date}, end date = {esp.end_date}')
 print(
